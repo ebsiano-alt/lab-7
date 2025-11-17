@@ -16,5 +16,6 @@ public class HashUtil {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 not supported", e);
         }
+        
     }
 }
