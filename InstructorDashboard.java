@@ -73,7 +73,7 @@ public class InstructorDashboard {
                 if (lt == null || lt.isBlank()) return;
                 String lc = JOptionPane.showInputDialog(frame, "Lesson content:");
                 Lesson l = new Lesson(lt, lc == null ? "" : lc);
-                // Add to lessons store and to course
+              
                 db.addOrUpdateLesson(l);
                 sel.addLesson(l);
                 db.updateCourse(sel);
@@ -87,23 +87,39 @@ public class InstructorDashboard {
                 try {
                     int idx = Integer.parseInt(idxS);
                     if (idx >= 0 && idx < sel.getLessons().size()) {
-                        // remove lesson from course only (lesson remains in lesson store)
+                        
                         sel.getLessons().remove(idx);
                         db.updateCourse(sel);
                         JOptionPane.showMessageDialog(frame, "Lesson removed from course.");
                     }
-                } catch (Exception ex) { /* ignore parse errors */ }
+                } catch (Exception ex) {  }
             } else if (op == 2) {
                 String nt = JOptionPane.showInputDialog(frame, "New title:", sel.getTitle());
                 if (nt != null && !nt.isBlank()) {
-                    sel.title = nt; // package-private direct change is okay inside same package
+                    sel.title = nt; 
                     db.updateCourse(sel);
                     JOptionPane.showMessageDialog(frame, "Course renamed.");
                 }
             }
         });
 
-       
+        viewStudentsBtn.addActionListener(e -> {
+            Course sel = list.getSelectedValue();
+            if (sel == null) {
+                JOptionPane.showMessageDialog(frame, "Select a course.");
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            for (String sid : sel.getStudentIds()) {
+                User u = db.findUserById(sid);
+                if (u != null) sb.append(u.getUsername()).append(" (").append(u.getEmail()).append(")\n");
+                else sb.append(sid).append("\n");
+            }
+            if (sb.length() == 0) sb.append("No students enrolled.");
+            JTextArea ta = new JTextArea(sb.toString());
+            ta.setEditable(false);
+            JOptionPane.showMessageDialog(frame, new JScrollPane(ta), "Students", JOptionPane.INFORMATION_MESSAGE);
+        });
 
         frame.setContentPane(p);
         frame.setVisible(true);
