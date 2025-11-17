@@ -18,6 +18,7 @@ public class Lesson {
         this.content = content;
     }
 
+    
     public String getLessonId() { return lessonId; }
     public String getTitle() { return title; }
     public String getContent() { return content; }
