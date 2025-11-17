@@ -133,4 +133,156 @@ public class JsonDatabaseManager {
         }
     }
 
-   
+    public void saveUsers() {
+        JSONArray arr = new JSONArray();
+        for (User u : usersById.values()) {
+            JSONObject o = new JSONObject();
+            o.put("userId", u.userId);
+            o.put("role", u.role);
+            o.put("username", u.username);
+            o.put("email", u.email);
+            o.put("passwordHash", u.passwordHash);
+            if (u instanceof Student s) {
+                o.put("enrolledCourseIds", new JSONArray(s.enrolledCourseIds));
+                o.put("completedLessonIds", new JSONArray(s.completedLessonIds));
+            } else if (u instanceof Instructor ins) {
+                o.put("createdCourseIds", new JSONArray(ins.createdCourseIds));
+            }
+            arr.put(o);
+        }
+        try (FileWriter fw = new FileWriter(USERS_FILE)) {
+            fw.write(arr.toString(4));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public synchronized boolean addUser(User u) {
+        if (u == null || u.getEmail() == null) return false;
+        if (findUserByEmail(u.getEmail()) != null) return false;
+        if (u.getUserId() == null) u.userId = UUID.randomUUID().toString();
+        usersById.put(u.getUserId(), u);
+        saveUsers();
+        return true;
+    }
+
+    public synchronized User findUserByEmail(String email) {
+        if (email == null) return null;
+        for (User u : usersById.values()) {
+            if (email.equalsIgnoreCase(u.getEmail())) return u;
+        }
+        return null;
+    }
+
+    public synchronized User findUserById(String id) {
+        return usersById.get(id);
+    }
+
+    public synchronized void updateUser(User u) {
+        if (u == null || u.getUserId() == null) return;
+        usersById.put(u.getUserId(), u);
+        saveUsers();
+    }
+
+
+    private void loadCourses() {
+        File f = new File(COURSES_FILE);
+        if (!f.exists()) {
+            saveCourses();
+            return;
+        }
+
+        try {
+            String content = Files.readString(f.toPath());
+            if (content.isBlank()) return;
+            JSONArray arr = new JSONArray(content);
+            coursesById.clear();
+
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                Course c = new Course();
+                c.courseId = o.optString("courseId", UUID.randomUUID().toString());
+                c.title = o.optString("title", "");
+                c.description = o.optString("description", "");
+                c.instructorId = o.optString("instructorId", "");
+
+              
+                JSONArray ls = o.optJSONArray("lessons");
+                if (ls != null) {
+                    for (int j = 0; j < ls.length(); j++) {
+                        Object entry = ls.get(j);
+                        if (entry instanceof JSONObject) {
+                            JSONObject lo = (JSONObject) entry;
+                            Lesson l = new Lesson();
+                            l.lessonId = lo.optString("lessonId", UUID.randomUUID().toString());
+                            l.title = lo.optString("title", "");
+                            l.content = lo.optString("content", "");
+                            lessonsById.putIfAbsent(l.lessonId, l);
+                            c.getLessons().add(l);
+                        } else {
+                            
+                            String lessonId = ls.getString(j);
+                            Lesson l = lessonsById.get(lessonId);
+                            if (l != null) c.getLessons().add(l);
+                        }
+                    }
+                }
+
+              
+                JSONArray st = o.optJSONArray("studentIds");
+                if (st != null) for (int j = 0; j < st.length(); j++) c.studentIds.add(st.getString(j));
+
+                coursesById.put(c.courseId, c);
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading courses: " + e.getMessage());
+            coursesById.clear();
+        }
+    }
+
+    public void saveCourses() {
+        JSONArray arr = new JSONArray();
+        for (Course c : coursesById.values()) {
+            JSONObject o = new JSONObject();
+            o.put("courseId", c.courseId);
+            o.put("title", c.title);
+            o.put("description", c.description);
+            o.put("instructorId", c.instructorId);
+          
+            JSONArray ls = new JSONArray();
+            for (Lesson l : c.getLessons()) ls.put(l.getLessonId());
+            o.put("lessons", ls);
+            o.put("studentIds", new JSONArray(c.getStudentIds()));
+            arr.put(o);
+        }
+        try (FileWriter fw = new FileWriter(COURSES_FILE)) {
+            fw.write(arr.toString(4));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public synchronized void addCourse(Course c) {
+        if (c == null) return;
+        if (c.courseId == null) c.courseId = UUID.randomUUID().toString();
+        coursesById.put(c.courseId, c);
+        saveCourses();
+    }
+
+    public synchronized Course findCourseById(String id) { return coursesById.get(id); }
+
+    public synchronized List<Course> listAllCourses() { return new ArrayList<>(coursesById.values()); }
+
+    public synchronized void updateCourse(Course c) {
+        if (c == null || c.courseId == null) return;
+        coursesById.put(c.courseId, c);
+        saveCourses();
+    }
+
+    public synchronized void deleteCourse(String id) {
+        coursesById.remove(id);
+        saveCourses();
+    }
+}
